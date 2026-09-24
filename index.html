@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Varanasi Stadium - Interactive 3D Seating & Ticket Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #090e1a;
+    color: #e2e8f0;
+    padding: 20px;
+    line-height: 1.5;
+  }
+
+  .booking-app-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #0f172a;
+    border-radius: 20px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+
+  /* App Header */
+  .app-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    padding: 24px 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .stadium-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #d4af37 0%, #b89228 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #0f172a;
+    font-weight: 900;
+  }
+
+  .brand-text h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.3px;
+  }
+
+  .brand-text p {
+    font-size: 13px;
+    color: #94a3b8;
+  }
+
+  /* Timer & Legend Badge */
+  .match-info-badge {
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-size: 13px;
+    color: #f4e0a5;
+    font-weight: 600;
+  }
+
+  /* Main Grid Layout */
+  .app-main-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0;
+  }
+
+  @media (max-width: 900px) {
+    .app-main-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Left Panel: 3D Stadium Map Canvas */
+  .stadium-canvas-panel {
+    padding: 30px;
+    background: radial-gradient(circle at center, #1e293b 0%, #0b132b 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .panel-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f4e0a5;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Interactive Stadium SVG Oval Structure */
+  .stadium-svg-container {
+    width: 100%;
+    max-width: 540px;
+    position: relative;
+  }
+
+  .stadium-svg {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 10px 25px rgba(0,0,0,0.6));
+  }
+
+  .stand-path {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    stroke: #090e1a;
+    stroke-width: 3;
+  }
+
+  .stand-path:hover {
+    filter: brightness(1.25);
+    stroke: #ffffff;
+    stroke-width: 4;
+  }
+
+  .stand-path.selected-stand {
+    stroke: #d4af37;
+    stroke-width: 5;
+    filter: brightness(1.3);
+  }
+
+  /* Seat Grid Panel (Zoomed Stand View) */
+  .seat-grid-container {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 25px;
+    display: none;
+  }
+
+  .seat-grid-container.active {
+    display: block;
+  }
+
+  .grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .grid-header h3 {
+    font-size: 16px;
+    color: #ffffff;
+  }
+
+  .screen-pitch-indicator {
+    width: 100%;
+    background: linear-gradient(90deg, rgba(22, 163, 74, 0.2) 0%, rgba(22, 163, 74, 0.8) 50%, rgba(22, 163, 74, 0.2) 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 4px;
+    border-radius: 4px;
+    margin-bottom: 18px;
+    letter-spacing: 1px;
+  }
+
+  /* Seat Matrix */
+  .seats-matrix {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+    justify-items: center;
+  }
+
+  .seat-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+
+  /* Color Codes */
+  .seat-available { background: #16a34a; color: #ffffff; }
+  .seat-available:hover { background: #22c55e; transform: scale(1.1); }
+  .seat-selected { background: #0284c7; color: #ffffff; border-color: #38bdf8; transform: scale(1.1); box-shadow: 0 0 10px #38bdf8; }
+  .seat-booked { background: #334155; color: #64748b; cursor: not-allowed; opacity: 0.6; }
+  .seat-vip { background: #d4af37; color: #0f172a; }
+  .seat-vip:hover { background: #f4e0a5; transform: scale(1.1); }
+
+  /* Right Panel: Booking Summary & Checkout */
+  .checkout-panel {
+    padding: 30px;
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .summary-card {
+    background: #1e293b;
+    border-radius: 14px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 20px;
+  }
+
+  .summary-card h3 {
+    font-size: 16px;
+    color: #ffffff;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 10px;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #94a3b8;
+  }
+
+  .summary-row.total-row {
+    font-size: 18px;
+    font-weight: 800;
+    color: #ffffff;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 12px;
+    margin-top: 15px;
+  }
+
+  .summary-row.total-row span:last-child {
+    color: #d4af37;
+  }
+
+  .selected-seats-badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .seat-tag {
+    background: rgba(2, 132, 199, 0.2);
+    border: 1px solid #0284c7;
+    color: #38bdf8;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  /* Legend Box */
+  .seat-legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #cbd5e1;
+  }
+
+  .legend-box {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+
+  /* Book Ticket Button */
+  .book-now-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #d4af37 0%, #b89228 100%);
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 800;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+  }
+
+  .book-now-btn:hover {
+    background: linear-gradient(135deg, #f4e0a5 0%, #d4af37 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(212, 175, 55, 0.5);
+  }
+
+  .book-now-btn:disabled {
+    background: #334155;
+    color: #64748b;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* E-Ticket Confirmation Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .ticket-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    color: #0f172a;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 440px;
+    padding: 30px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    text-align: center;
+    position: relative;
+  }
+
+  .ticket-header {
+    border-bottom: 2px dashed #e2e8f0;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+  }
+
+  .ticket-header h2 {
+    font-size: 20px;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .qr-code-placeholder {
+    width: 140px;
+    height: 140px;
+    background: #0f172a;
+    margin: 15px auto;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 40px;
+  }
+
+  .close-modal-btn {
+    margin-top: 20px;
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="booking-app-wrapper">
+  
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="stadium-brand">
+      <div class="brand-icon">🔱</div>
+      <div class="brand-text">
+        <h1>Varanasi Stadium Ticket Booking</h1>
+        <p>Ganjari, Rajatalab • International Cricket Match</p>
+      </div>
+    </div>
+    <div class="match-info-badge">
+      ⏱️ Seat Hold Timer: <span id="holdTimer">05:00</span>
+    </div>
+  </header>
+
+  <!-- Main Workspace Grid -->
+  <div class="app-main-grid">
+    
+    <!-- LEFT: 3D / SVG Interactive Stadium Map -->
+    <div class="stadium-canvas-panel">
+      <h2 class="panel-title">Step 1: Select Stadium Stand / Tier</h2>
+      
+      <!-- Interactive SVG Stadium Floorplan Map -->
+      <div class="stadium-svg-container">
+        <svg class="stadium-svg" viewBox="0 0 500 400">
+          
+          <!-- Outer Stadium Ring -->
+          <ellipse cx="250" cy="200" rx="230" ry="170" fill="#1e293b" stroke="#334155" stroke-width="4"/>
+
+          <!-- STAND 1: North Stand (Trishul Light View) -->
+          <path id="stand-north" class="stand-path" d="M 120,70 A 210,150 0 0,1 380,70 L 340,110 A 160,110 0 0,0 160,110 Z" fill="#0284c7" onclick="selectStand('North Stand (Trishul View)', 1500, 'stand-north')"/>
+          <text x="250" y="85" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle" pointer-events="none">NORTH STAND (Trishul View) - ₹1,500</text>
+
+          <!-- STAND 2: South Stand (Ganga Ghat Deck) -->
+          <path id="stand-south" class="stand-path" d="M 160,290 A 160,110 0 0,0 340,290 L 380,330 A 210,150 0 0,1 120,330 Z" fill="#16a34a" onclick="selectStand('South Stand (Ghat Deck)', 1200, 'stand-south')"/>
+          <text x="250" y="320" fill="#ffffff" font-size="12" font-weight="bold" text-anchor="middle" pointer-events="none">SOUTH STAND (Ghat Deck) - ₹1,200</text>
+
+          <!-- STAND 3: East Stand (Bel Patra Pavilion) -->
+          <path id="stand-east" class="stand-path" d="M 380,70 A 210,150 0 0,1 380,330 L 340,290 A 160,110 0 0,0 340,110 Z" fill="#ea580c" onclick="selectStand('East Stand (Bel Patra)', 2000, 'stand-east')"/>
+          <text x="375" y="205" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle" transform="rotate(90, 375, 205)" pointer-events="none">EAST STAND (Bel Patra) - ₹2,000</text>
+
+          <!-- STAND 4: West Stand (Damru VIP Suite) -->
+          <path id="stand-west" class="stand-path" d="M 120,70 L 160,110 A 160,110 0 0,0 160,290 L 120,330 A 210,150 0 0,1 120,70 Z" fill="#d4af37" onclick="selectStand('West Stand (Damru VIP Box)', 3500, 'stand-west')"/>
+          <text x="125" y="205" fill="#0f172a" font-size="11" font-weight="bold" text-anchor="middle" transform="rotate(-90, 125, 205)" pointer-events="none">WEST STAND (Damru VIP) - ₹3,500</text>
+
+          <!-- CRICKET PITCH (GREEN GROUND) -->
+          <ellipse cx="250" cy="200" rx="140" ry="90" fill="#15803d" stroke="#22c55e" stroke-width="3"/>
+          <rect x="235" y="170" width="30" height="60" fill="#e2e8f0" rx="2"/>
+          <line x1="235" y1="180" x2="265" y2="180" stroke="#000" stroke-width="2"/>
+          <line x1="235" y1="220" x2="265" y2="220" stroke="#000" stroke-width="2"/>
+          <text x="250" y="205" fill="#15803d" font-size="11" font-weight="bold" text-anchor="middle">GROUND / PITCH</text>
+        </svg>
+      </div>
+
+      <!-- ZOOMED SEAT SELECTION GRID -->
+      <div class="seat-grid-container" id="seatGridContainer">
+        <div class="grid-header">
+          <h3 id="currentStandName">Select Seats</h3>
+          <span style="font-size: 12px; color: #94a3b8;">Click seats to select</span>
+        </div>
+        
+        <div class="screen-pitch-indicator">GROUND & PITCH DIRECTION</div>
+
+        <div class="seats-matrix" id="seatsMatrix">
+          <!-- Dynamically Generated Seats -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Booking Summary & Checkout -->
+    <div class="checkout-panel">
+      <div>
+        <h2 class="panel-title">Step 2: Review & Confirm</h2>
+        
+        <!-- Legend Colors -->
+        <div class="seat-legend">
+          <div class="legend-item"><div class="legend-box seat-available"></div> Available</div>
+          <div class="legend-item"><div class="legend-box seat-selected"></div> Selected</div>
+          <div class="legend-item"><div class="legend-box seat-booked"></div> Booked</div>
+          <div class="legend-item"><div class="legend-box seat-vip"></div> Damru VIP Suite</div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="summary-card">
+          <h3>Booking Summary</h3>
+          <div class="summary-row">
+            <span>Selected Stand:</span>
+            <strong id="summaryStand" style="color: #ffffff;">None Selected</strong>
+          </div>
+          <div class="summary-row">
+            <span>Seat Count:</span>
+            <strong id="summaryCount" style="color: #ffffff;">0 Seats</strong>
+          </div>
+          <div class="summary-row">
+            <span>Seats:</span>
+            <div class="selected-seats-badge-list" id="selectedSeatsList">
+              <span style="font-size: 12px; color: #64748b;">No seats picked</span>
+            </div>
+          </div>
+          <div class="summary-row total-row">
+            <span>Total Payable:</span>
+            <span id="summaryTotal">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book Button -->
+      <button class="book-now-btn" id="bookBtn" disabled onclick="confirmBooking()">
+        Book Ticket & Generate Pass 🎟️
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- E-Ticket Confirmation Modal -->
+<div class="modal-overlay" id="ticketModal">
+  <div class="ticket-card">
+    <div class="ticket-header">
+      <span style="font-size: 12px; color: #d4af37; font-weight: 800; text-transform: uppercase;">Official E-Ticket Pass</span>
+      <h2>VARANASI STADIUM</h2>
+      <p style="font-size: 12px; color: #64748b;">Ganjari Ring Road Phase-2, Rajatalab</p>
+    </div>
+
+    <div style="text-align: left; font-size: 13px; margin-bottom: 15px;">
+      <p><strong>Stand:</strong> <span id="ticketStandName">North Stand</span></p>
+      <p><strong>Seats:</strong> <span id="ticketSeatNos">A1, A2</span></p>
+      <p><strong>Amount Paid:</strong> <span id="ticketAmount" style="color: #16a34a; font-weight: 800;">₹3,000</span></p>
+      <p><strong>Gate No:</strong> Gate 3 (Trishul Gate)</p>
+    </div>
+
+    <div class="qr-code-placeholder">
+      📱 QR
+    </div>
+    <p style="font-size: 11px; color: #64748b;">Scan this QR code at Varanasi Stadium turnstile gate for entry</p>
+
+    <button class="close-modal-btn" onclick="closeModal()">Close / Download PDF</button>
+  </div>
+</div>
+
+<script>
+  let currentStand = null;
+  let currentPrice = 0;
+  let selectedSeats = [];
+
+  const bookedSeatsMap = ['A3', 'A4', 'B7', 'B8', 'C2'];
+
+  function selectStand(standName, price, pathId) {
+    currentStand = standName;
+    currentPrice = price;
+    selectedSeats = [];
+
+    document.querySelectorAll('.stand-path').forEach(el => el.classList.remove('selected-stand'));
+    document.getElementById(pathId).classList.add('selected-stand');
+
+    document.getElementById('seatGridContainer').classList.add('active');
+    document.getElementById('currentStandName').innerText = `${standName} (${price}/seat)`;
+
+    renderSeatsMatrix();
+    updateSummary();
+  }
+
+  function renderSeatsMatrix() {
+    const matrix = document.getElementById('seatsMatrix');
+    matrix.innerHTML = '';
+
+    const rows = ['A', 'B', 'C', 'D'];
+    rows.forEach(row => {
+      for (let i = 1; i <= 10; i++) {
+        const seatId = `${row}${i}`;
+        const btn = document.createElement('div');
+        btn.className = 'seat-btn';
+        btn.innerText = seatId;
+
+        if (bookedSeatsMap.includes(seatId)) {
+          btn.classList.add('seat-booked');
+        } else if (currentStand.includes('VIP') && (row === 'A' || row === 'B')) {
+          btn.classList.add('seat-vip');
+          btn.onclick = () => toggleSeat(seatId, btn);
+        } else {
+          btn.classList.add('seat-available');
+          btn.onclick = () => toggleSeat(seatId, btn);
+        }
+
+        matrix.appendChild(btn);
+      }
+    });
+  }
+
+  function toggleSeat(seatId, btnElement) {
+    if (selectedSeats.includes(seatId)) {
+      selectedSeats = selectedSeats.filter(s => s !== seatId);
+      btnElement.classList.remove('seat-selected');
+    } else {
+      if (selectedSeats.length >= 6) {
+        alert('Maximum 6 seats allowed per booking.');
+        return;
+      }
+      selectedSeats.push(seatId);
+      btnElement.classList.add('seat-selected');
+    }
+    updateSummary();
+  }
+
+  function updateSummary() {
+    document.getElementById('summaryStand').innerText = currentStand ? currentStand : 'None Selected';
+    document.getElementById('summaryCount').innerText = `${selectedSeats.length} Seats`;
+
+    const seatsList = document.getElementById('selectedSeatsList');
+    if (selectedSeats.length === 0) {
+      seatsList.innerHTML = '<span style="font-size: 12px; color: #64748b;">No seats picked</span>';
+      document.getElementById('bookBtn').disabled = true;
+    } else {
+      seatsList.innerHTML = selectedSeats.map(s => `<span class="seat-tag">${s}</span>`).join('');
+      document.getElementById('bookBtn').disabled = false;
+    }
+
+    const total = selectedSeats.length * currentPrice;
+    document.getElementById('summaryTotal').innerText = `₹${total.toLocaleString()}`;
+  }
+
+  function confirmBooking() {
+    document.getElementById('ticketStandName').innerText = currentStand;
+    document.getElementById('ticketSeatNos').innerText = selectedSeats.join(', ');
+    document.getElementById('ticketAmount').innerText = `₹${(selectedSeats.length * currentPrice).toLocaleString()}`;
+    document.getElementById('ticketModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('ticketModal').classList.remove('active');
+    alert('Ticket Booking Confirmed! E-Ticket saved.');
+  }
+
+  // 5 Minute Timer
+  let timeRemaining = 300;
+  setInterval(() => {
+    if (timeRemaining > 0) {
+      timeRemaining--;
+      const min = String(Math.floor(timeRemaining / 60)).padStart(2, '0');
+      const sec = String(timeRemaining % 60).padStart(2, '0');
+      document.getElementById('holdTimer').innerText = `${min}:${sec}`;
+    }
+  }, 1000);
+</script>
+
+</body>
+</html>
